@@ -122,7 +122,7 @@ function extractImportantChanges(diff: string, maxLines: number = 10): string {
  * @param file 変更されたファイル情報
  * @returns 詳細な説明
  */
-function generateDetailedFileDescription(file: FileChange): string {
+export function generateDetailedFileDescription(file: FileChange): string {
   const fileType = getFileTypeDescription(file.path);
   const fileName = path.basename(file.path);
   const dirName = path.dirname(file.path);
@@ -149,16 +149,13 @@ function generateDetailedFileDescription(file: FileChange): string {
 }
 
 /**
- * Anthropic APIを使用してコミットメッセージを生成する
+ * 変更の詳細なサマリを生成する
  * @param files 変更されたファイルの情報
- * @param debug デバッグモードかどうか
- * @returns 生成されたコミットメッセージ
+ * @returns 詳細なサマリ
  */
-export async function generateCommitMessageWithAI(files: FileChange[], debug: boolean = false): Promise<string> {
-  // 変更の概要を作成（より詳細に）
-  const filesByType: Record<string, FileChange[]> = {};
-  
+export function generateDetailedChangeSummary(files: FileChange[]): string {
   // ファイルを種類ごとにグループ化
+  const filesByType: Record<string, FileChange[]> = {};
   files.forEach(file => {
     const ext = path.extname(file.path).toLowerCase();
     if (!filesByType[ext]) {
@@ -193,6 +190,22 @@ export async function generateCommitMessageWithAI(files: FileChange[], debug: bo
   files.forEach(file => {
     summary += `\n${generateDetailedFileDescription(file)}\n`;
   });
+  
+  return summary;
+}
+
+/**
+ * Anthropic APIを使用してコミットメッセージを生成する
+ * @param files 変更されたファイルの情報
+ * @param debug デバッグモードかどうか
+ * @returns 生成されたコミットメッセージとサマリ
+ */
+export async function generateCommitMessageWithAI(
+  files: FileChange[], 
+  debug: boolean = false
+): Promise<{ message: string, summary: string }> {
+  // 変更の詳細なサマリを生成
+  const summary = generateDetailedChangeSummary(files);
   
   // プロンプトの作成
   const prompt = `あなたはGitコミットメッセージを生成するAIアシスタントです。
@@ -250,7 +263,7 @@ ${summary}
     
     // レスポンスからコミットメッセージを抽出
     const message = responseData.content[0].text.trim();
-    return message;
+    return { message, summary };
   } catch (error) {
     console.error(chalk.red('AIによるコミットメッセージ生成中にエラーが発生しました:'), error);
     throw error;

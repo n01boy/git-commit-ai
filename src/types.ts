@@ -5,6 +5,7 @@ export interface CommandOptions {
   all?: boolean;
   push?: boolean;
   debug?: boolean;
+  verbose?: boolean;
 }
 
 /**

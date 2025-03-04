@@ -13,7 +13,8 @@ import {
 } from './git-utils';
 import { 
   checkEnvironmentVariables, 
-  generateCommitMessageWithAI 
+  generateCommitMessageWithAI,
+  generateDetailedChangeSummary
 } from './ai-service';
 
 // コマンドラインオプションの設定
@@ -23,6 +24,7 @@ program
   .option('-a, --all', 'すべての変更をステージングしてからコミット')
   .option('-p, --push', 'コミット後に自動的にプッシュする')
   .option('-d, --debug', 'デバッグモード（AIへの入力を表示）')
+  .option('-v, --verbose', '詳細モード（変更の詳細を表示）')
   .parse(process.argv);
 
 const options = program.opts() as CommandOptions;
@@ -32,6 +34,16 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
+
+/**
+ * 変更の詳細をコンソールに表示する
+ * @param summary 変更の詳細なサマリ
+ */
+function displayChangeSummary(summary: string) {
+  console.log(chalk.cyan('\n===== 変更の詳細 ====='));
+  console.log(chalk.cyan(summary));
+  console.log(chalk.cyan('=====================\n'));
+}
 
 /**
  * メイン処理
@@ -69,20 +81,31 @@ async function main() {
       console.log(`  ${statusColor(file.status)} ${file.path}`);
     });
     
+    // 詳細モードまたはデバッグモードの場合は、変更の詳細を表示
+    if (options.verbose || options.debug) {
+      const summary = generateDetailedChangeSummary(stagedFiles);
+      displayChangeSummary(summary);
+    }
+    
     // コミットメッセージを生成
     let generatedMessage: string;
+    let changeSummary: string;
+    
     try {
-      generatedMessage = await generateCommitMessageWithAI(stagedFiles, options.debug);
+      const result = await generateCommitMessageWithAI(stagedFiles, options.debug);
+      generatedMessage = result.message;
+      changeSummary = result.summary;
     } catch (error) {
       console.error(chalk.yellow('AIによるコミットメッセージ生成に失敗しました。フォールバックメッセージを使用します。'));
       generatedMessage = generateFallbackCommitMessage(stagedFiles);
+      changeSummary = generateDetailedChangeSummary(stagedFiles);
     }
     
     console.log(chalk.blue('\n提案されたコミットメッセージ:'));
     console.log(chalk.cyan(`  ${generatedMessage}`));
     
     // ユーザーに確認
-    rl.question(chalk.yellow('\nこのメッセージでコミットしますか？ (y/n/edit): '), async (answer) => {
+    rl.question(chalk.yellow('\nこのメッセージでコミットしますか？ (y/n/edit/detail): '), async (answer) => {
       let commitMessage = generatedMessage;
       
       if (answer.toLowerCase() === 'y') {
@@ -95,6 +118,25 @@ async function main() {
           commitMessage = newMessage;
           await performCommit(commitMessage, options.push);
           rl.close();
+        });
+      } else if (answer.toLowerCase() === 'detail') {
+        // 変更の詳細を表示してから再確認
+        displayChangeSummary(changeSummary);
+        
+        rl.question(chalk.yellow('このメッセージでコミットしますか？ (y/n/edit): '), async (detailAnswer) => {
+          if (detailAnswer.toLowerCase() === 'y') {
+            await performCommit(commitMessage, options.push);
+            rl.close();
+          } else if (detailAnswer.toLowerCase() === 'edit') {
+            rl.question(chalk.yellow('新しいコミットメッセージを入力してください: '), async (newMessage) => {
+              commitMessage = newMessage;
+              await performCommit(commitMessage, options.push);
+              rl.close();
+            });
+          } else {
+            console.log(chalk.red('コミットがキャンセルされました'));
+            rl.close();
+          }
         });
       } else {
         // キャンセル

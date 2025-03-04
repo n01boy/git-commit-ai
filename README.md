@@ -19,8 +19,10 @@ git commit -m "{ここに書くのがめんどくさい!!!!!}"
   - 変更タイプ（追加、修正、削除）別の集計
   - 各ファイルの詳細な変更内容（追加/削除行数、重要な変更部分）
 - 対話型インターフェース
-- コミットメッセージの編集オプション
+  - コミットメッセージの編集オプション
+  - 変更詳細の表示オプション
 - 自動プッシュオプション
+- 詳細モードとデバッグモード
 
 ## インストールと設定
 
@@ -127,6 +129,7 @@ git-review-ai
 5. 提案に対して応答します
    - `y`: 提案されたメッセージでコミット
    - `edit`: メッセージを編集してからコミット
+   - `detail`: 変更の詳細を表示してから再確認
    - `n`: キャンセル
 
 ### コマンドラインオプション
@@ -136,8 +139,9 @@ git-review-ai
 | `-a, --all`     | すべての変更をステージングしてからコミット | `git-review-ai --all`     |
 | `-p, --push`    | コミット後に自動的にプッシュする           | `git-review-ai --push`    |
 | `-d, --debug`   | デバッグモード（AIへの入力を表示）         | `git-review-ai --debug`   |
+| `-v, --verbose` | 詳細モード（変更の詳細を表示）             | `git-review-ai --verbose` |
 | `-h, --help`    | ヘルプ情報を表示                           | `git-review-ai --help`    |
-| `-v, --version` | バージョン情報を表示                       | `git-review-ai --version` |
+| `--version`     | バージョン情報を表示                       | `git-review-ai --version` |
 
 ### 使用例
 
@@ -162,36 +166,72 @@ AIを使用してコミットメッセージを生成中...
 提案されたコミットメッセージ:
   ユーティリティ関数の追加と不要ファイルの削除
 
-このメッセージでコミットしますか？ (y/n/edit): y
+このメッセージでコミットしますか？ (y/n/edit/detail): y
 コミットが完了しました: "ユーティリティ関数の追加と不要ファイルの削除"
 ```
 
-#### 例2: コミット後に自動的にプッシュ
+#### 例2: 詳細モードで変更内容を表示
 
 ```bash
-git-review-ai --push
+git-review-ai --verbose
 ```
 
 出力例:
 
 ```
 2個のファイルがステージングされています:
-  modified README.md
-  modified package.json
+  modified src/index.ts
+  added src/utils.ts
+
+===== 変更の詳細 =====
+# 変更概要
+合計 2 ファイルが変更されました。
+
+## ファイルタイプ別変更
+- TypeScript: 2ファイル
+
+## 変更タイプ別
+- 追加: 1ファイル
+- 修正: 1ファイル
+
+# 詳細な変更内容
+
+【modified】index.ts (TypeScript)
+  変更: +15行, -5行
+  主な変更:
++import { Utils } from './utils';
+-// TODO: ユーティリティ関数を実装
++  const result = Utils.formatDate(new Date());
++  console.log(`フォーマットされた日付: ${result}`);
+... (他 10 行の変更)
+
+【added】utils.ts (TypeScript)
+  場所: src
+  変更: +25行, -0行
+  主な変更:
++export class Utils {
++  /**
++   * 日付を YYYY-MM-DD 形式にフォーマットする
++   */
++  static formatDate(date: Date): string {
++    const year = date.getFullYear();
++    const month = String(date.getMonth() + 1).padStart(2, '0');
++    const day = String(date.getDate()).padStart(2, '0');
++    return `${year}-${month}-${day}`;
++  }
+... (他 15 行の変更)
+=====================
 
 AIを使用してコミットメッセージを生成中...
 使用するモデル: claude-3-7-sonnet-latest
 
 提案されたコミットメッセージ:
-  READMEとパッケージ設定の更新
+  日付フォーマット用ユーティリティクラスの追加
 
-このメッセージでコミットしますか？ (y/n/edit): y
-コミットが完了しました: "READMEとパッケージ設定の更新"
-変更をプッシュしています...
-プッシュが完了しました
+このメッセージでコミットしますか？ (y/n/edit/detail):
 ```
 
-#### 例3: メッセージを編集してコミット
+#### 例3: 変更詳細を確認してからコミット
 
 ```bash
 git-review-ai
@@ -208,6 +248,32 @@ AIを使用してコミットメッセージを生成中...
 
 提案されたコミットメッセージ:
   インデックスファイルの更新
+
+このメッセージでコミットしますか？ (y/n/edit/detail): detail
+
+===== 変更の詳細 =====
+# 変更概要
+合計 1 ファイルが変更されました。
+
+## ファイルタイプ別変更
+- TypeScript: 1ファイル
+
+## 変更タイプ別
+- 修正: 1ファイル
+
+# 詳細な変更内容
+
+【modified】index.ts (TypeScript)
+  変更: +8行, -2行
+  主な変更:
++  // エラーハンドリングを改善
++  try {
++    // 処理
++  } catch (error) {
++    console.error('エラーが発生しました:', error);
++  }
+-  // TODO: エラーハンドリングを実装する
+=====================
 
 このメッセージでコミットしますか？ (y/n/edit): edit
 新しいコミットメッセージを入力してください: エラーハンドリングの改善
@@ -226,6 +292,45 @@ git-review-ai --debug
 2個のファイルがステージングされています:
   modified src/index.ts
   added src/utils.ts
+
+===== 変更の詳細 =====
+# 変更概要
+合計 2 ファイルが変更されました。
+
+## ファイルタイプ別変更
+- TypeScript: 2ファイル
+
+## 変更タイプ別
+- 追加: 1ファイル
+- 修正: 1ファイル
+
+# 詳細な変更内容
+
+【modified】index.ts (TypeScript)
+  変更: +15行, -5行
+  主な変更:
++import { Utils } from './utils';
+-// TODO: ユーティリティ関数を実装
++  const result = Utils.formatDate(new Date());
++  console.log(`フォーマットされた日付: ${result}`);
+... (他 10 行の変更)
+
+【added】utils.ts (TypeScript)
+  場所: src
+  変更: +25行, -0行
+  主な変更:
++export class Utils {
++  /**
++   * 日付を YYYY-MM-DD 形式にフォーマットする
++   */
++  static formatDate(date: Date): string {
++    const year = date.getFullYear();
++    const month = String(date.getMonth() + 1).padStart(2, '0');
++    const day = String(date.getDate()).padStart(2, '0');
++    return `${year}-${month}-${day}`;
++  }
+... (他 15 行の変更)
+=====================
 
 AIへの入力:
 あなたはGitコミットメッセージを生成するAIアシスタントです。
@@ -282,7 +387,7 @@ AIを使用してコミットメッセージを生成中...
 提案されたコミットメッセージ:
   日付フォーマット用ユーティリティクラスの追加
 
-このメッセージでコミットしますか？ (y/n/edit):
+このメッセージでコミットしますか？ (y/n/edit/detail):
 ```
 
 ## AIに送信される詳細な変更サマリ
@@ -303,6 +408,26 @@ AIを使用してコミットメッセージを生成中...
    - 重要な変更部分の抜粋（最大10行）
 
 これにより、AIはコミットの内容をより深く理解し、適切なコミットメッセージを生成できます。
+
+## 変更詳細の表示方法
+
+変更の詳細を表示するには、以下の方法があります：
+
+1. **--verbose オプションを使用**
+   ```bash
+   git-review-ai --verbose
+   ```
+2. **コミットメッセージ確認時に 'detail' を選択**
+
+   ```
+   このメッセージでコミットしますか？ (y/n/edit/detail): detail
+   ```
+
+3. **--debug オプションを使用**
+   ```bash
+   git-review-ai --debug
+   ```
+   これにより、AIへの入力も含めた詳細情報が表示されます。
 
 ## トラブルシューティング
 
