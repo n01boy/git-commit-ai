@@ -1,10 +1,10 @@
 {
-  "name": "git-review-ai",
+  "name": "git-commit-message-ai",
   "version": "1.0.0",
   "description": "AIを使用してGitコミットメッセージを自動生成するツール",
   "main": "dist/index.js",
   "bin": {
-    "git-review-ai": "./dist/index.js"
+    "git-commit-ai": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -19,8 +19,16 @@
     "ai",
     "automation"
   ],
-  "author": "",
+  "author": "n01boy",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/n01boy/git-commit-message-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/n01boy/git-commit-message-ai/issues"
+  },
+  "homepage": "https://github.com/n01boy/git-commit-message-ai#readme",
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^9.4.1",
