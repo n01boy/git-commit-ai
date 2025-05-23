@@ -123,7 +123,7 @@ export function generateFallbackCommitMessage(files: FileChange[]): string {
   };
   
   const verbOptions = changeVerbs[mainChangeType];
-  const selectedVerb = verbOptions[Math.floor(Math.random() * verbOptions.length)];
+  const selectedVerb = verbOptions ? verbOptions[Math.floor(Math.random() * verbOptions.length)] : '更新';
   
   // コミットメッセージの生成
   let message = `${selectedVerb}: ${fileTypeDesc}`;
@@ -131,7 +131,7 @@ export function generateFallbackCommitMessage(files: FileChange[]): string {
   // 変更されたファイル名から追加情報を取得
   if (files.length === 1) {
     // 単一ファイルの場合はファイル名を含める
-    const fileName = path.basename(files[0].path, path.extname(files[0].path));
+    const fileName = path.basename(files[0]?.path || '', path.extname(files[0]?.path || ''));
     message += `の${fileName}`;
   } else if (files.length <= 3) {
     // 少数のファイルの場合は全てのファイル名を含める
