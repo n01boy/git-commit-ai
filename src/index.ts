@@ -20,7 +20,7 @@ import { runConfigSetup, showConfig } from './config';
 
 // コマンドラインオプションの設定
 program
-  .version('1.0.0')
+  .version('1.0.2')
   .description('AIを使用してGitコミットメッセージを自動生成するツール')
   .option('-a, --all', 'すべての変更をステージングしてからコミット')
   .option('-p, --push', 'コミット後に自動的にプッシュする')

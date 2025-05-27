@@ -1,6 +1,6 @@
 {
   "name": "git-commit-message-ai",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "AIを使用してGitコミットメッセージを自動生成するツール",
   "main": "dist/index.js",
   "bin": {
