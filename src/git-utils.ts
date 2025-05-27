@@ -2,6 +2,7 @@ import simpleGit, { SimpleGit } from 'simple-git';
 import path from 'path';
 import chalk from 'chalk';
 import { FileChange } from './types';
+import { FILE_TYPE_DESCRIPTIONS } from './constants';
 
 // Gitクライアントの初期化
 export const git: SimpleGit = simpleGit();
@@ -93,27 +94,7 @@ export function generateFallbackCommitMessage(files: FileChange[]): string {
     }
   }
   
-  // ファイルタイプに基づいた変更の説明
-  const fileTypeDescriptions: Record<string, string> = {
-    js: 'JavaScript',
-    ts: 'TypeScript',
-    jsx: 'React',
-    tsx: 'React TypeScript',
-    css: 'スタイル',
-    scss: 'Sassスタイル',
-    html: 'HTML',
-    md: 'ドキュメント',
-    json: '設定',
-    yml: '設定',
-    yaml: '設定',
-    py: 'Python',
-    rb: 'Ruby',
-    go: 'Go',
-    java: 'Java',
-    php: 'PHP'
-  };
-  
-  const fileTypeDesc = fileTypeDescriptions[mainFileType] || 'ファイル';
+  const fileTypeDesc = FILE_TYPE_DESCRIPTIONS[mainFileType] || 'ファイル';
   
   // 変更動詞の選択
   const changeVerbs: Record<string, string[]> = {

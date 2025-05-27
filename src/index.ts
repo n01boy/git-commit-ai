@@ -13,9 +13,9 @@ import {
 } from './git-utils';
 import { 
   checkEnvironmentVariables, 
-  generateCommitMessageWithAI,
-  generateDetailedChangeSummary
+  generateCommitMessageWithAI
 } from './ai-service';
+import { generateDetailedChangeSummary } from './prompt-utils';
 import { runConfigSetup, showConfig } from './config';
 
 // コマンドラインオプションの設定
@@ -62,7 +62,8 @@ if (process.argv.length === 2) {
 // 対話型インターフェースの設定
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
+  terminal: false
 });
 
 /**

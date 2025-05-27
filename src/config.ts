@@ -51,7 +51,6 @@ export function saveConfig(config: Config): void {
   try {
     ensureConfigDir();
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    console.log(chalk.green('設定が保存されました。'));
   } catch (error) {
     console.error(chalk.red('設定の保存に失敗しました:'), error);
   }
@@ -72,7 +71,7 @@ export async function runConfigSetup(): Promise<void> {
     // モデル選択
     console.log(chalk.yellow('使用するモデルを選択してください:'));
     console.log('1. claude-sonnet-4-20250514 (Anthropic API)');
-    console.log('2. vertex-claude-sonnet-4-20250514 (Google Cloud Vertex AI)');
+    console.log('2. vertex-gemini-2.0-flash (Google Cloud Vertex AI)');
 
     const modelChoice = await askQuestion(rl, '\nモデルを選択してください (1 または 2): ');
     
@@ -94,7 +93,7 @@ export async function runConfigSetup(): Promise<void> {
       console.log(chalk.yellow('\nAnthropic APIキーを設定します。'));
       console.log(chalk.gray('APIキーは https://console.anthropic.com/ で取得できます。'));
       
-      const apiKey = await askQuestion(rl, 'Anthropic APIキーを入力してください: ');
+      const apiKey = await askQuestion(rl, 'Anthropic APIキーを入力してください: ', true);
       if (!apiKey.trim()) {
         console.log(chalk.red('APIキーが入力されませんでした。設定を終了します。'));
         rl.close();
@@ -137,11 +136,45 @@ export async function runConfigSetup(): Promise<void> {
 /**
  * 質問をして回答を取得する
  */
-function askQuestion(rl: readline.Interface, question: string): Promise<string> {
+function askQuestion(rl: readline.Interface, question: string, hideInput: boolean = false): Promise<string> {
   return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer);
-    });
+    if (hideInput) {
+      // APIキーなどの機密情報の場合は入力を隠す
+      process.stdout.write(question);
+      const stdin = process.stdin;
+      stdin.setRawMode(true);
+      stdin.resume();
+      stdin.setEncoding('utf8');
+      
+      let input = '';
+      const onData = (key: string) => {
+        if (key === '\r' || key === '\n') {
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdin.removeListener('data', onData);
+          process.stdout.write('\n');
+          resolve(input);
+        } else if (key === '\u0003') {
+          // Ctrl+C
+          process.exit();
+        } else if (key === '\u007f') {
+          // Backspace
+          if (input.length > 0) {
+            input = input.slice(0, -1);
+            process.stdout.write('\b \b');
+          }
+        } else if (key >= ' ') {
+          input += key;
+          process.stdout.write('*');
+        }
+      };
+      
+      stdin.on('data', onData);
+    } else {
+      rl.question(question, (answer) => {
+        resolve(answer);
+      });
+    }
   });
 }
 
@@ -158,7 +191,10 @@ export function showConfig(): void {
   }
 
   console.log(chalk.blue('現在の設定:'));
-  console.log(chalk.green(`モデル: ${config.model}`));
+  const modelDisplayName = config.model === 'vertex-claude-sonnet-4-20250514' 
+    ? 'vertex-gemini-2.0-flash' 
+    : config.model;
+  console.log(chalk.green(`モデル: ${modelDisplayName}`));
   
   if (config.apiKey) {
     console.log(chalk.green(`APIキー: ${config.apiKey.substring(0, 8)}...`));
