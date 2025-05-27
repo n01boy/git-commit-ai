@@ -2,24 +2,34 @@ import https from 'https';
 import chalk from 'chalk';
 import path from 'path';
 import { FileChange } from './types';
-
-// 環境変数からAPIキーとモデル名を取得
-const apiKey = process.env.ANTHROPIC_API_KEY;
-const modelName = process.env.GIT_REVIEW_AI_USE || 'claude-3-7-sonnet-latest';
+import { loadConfig, Config } from './config';
 
 /**
- * 環境変数が正しく設定されているか確認する
+ * 設定が正しく設定されているか確認する
  * @returns 設定されていればtrue、そうでなければfalse
  */
 export function checkEnvironmentVariables(): boolean {
-  if (!apiKey) {
-    console.error(chalk.red('エラー: ANTHROPIC_API_KEYが設定されていません。'));
-    console.error(chalk.yellow('環境変数ANTHROPIC_API_KEYを設定してください。'));
-    console.error(chalk.yellow('例: export ANTHROPIC_API_KEY=sk-XXXXXXXX'));
+  const config = loadConfig();
+  
+  if (!config) {
+    console.error(chalk.red('設定が見つかりません。'));
+    console.error(chalk.yellow('git-commit-ai config を実行して設定を行ってください。'));
     return false;
   }
   
-  console.log(chalk.blue(`使用するモデル: ${modelName}`));
+  if (config.model === 'claude-sonnet-4-20250514' && !config.apiKey) {
+    console.error(chalk.red('Anthropic APIキーが設定されていません。'));
+    console.error(chalk.yellow('git-commit-ai config を実行して設定を行ってください。'));
+    return false;
+  }
+  
+  if (config.model === 'vertex-claude-sonnet-4-20250514' && !config.projectName) {
+    console.error(chalk.red('Google Cloud プロジェクト名が設定されていません。'));
+    console.error(chalk.yellow('git-commit-ai config を実行して設定を行ってください。'));
+    return false;
+  }
+  
+  console.log(chalk.blue(`使用するモデル: ${config.model}`));
   return true;
 }
 
@@ -204,6 +214,12 @@ export async function generateCommitMessageWithAI(
   files: FileChange[], 
   debug: boolean = false
 ): Promise<{ message: string, summary: string }> {
+  const config = loadConfig();
+  
+  if (!config) {
+    throw new Error('設定が見つかりません。git-commit-ai config を実行してください。');
+  }
+
   // 変更の詳細なサマリを生成
   const summary = generateDetailedChangeSummary(files);
   
@@ -229,45 +245,86 @@ ${summary}
   try {
     console.log(chalk.blue('AIを使用してコミットメッセージを生成中...'));
     
-    // Anthropic API リクエストデータ
-    const requestData = JSON.stringify({
-      model: modelName,
-      max_tokens: 100,
-      temperature: 0.7,
-      system: "あなたはGitコミットメッセージを生成するAIアシスタントです。簡潔で明確なコミットメッセージを日本語で生成してください。",
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
-    });
-
-    // HTTPリクエストのオプション
-    const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      }
-    };
-
-    // HTTPリクエストを実行して結果を取得
-    const response = await makeHttpRequest(options, requestData);
-    
-    // レスポンスをJSONとしてパース
-    const responseData = JSON.parse(response);
-    
-    // レスポンスからコミットメッセージを抽出
-    const message = responseData.content[0].text.trim();
-    return { message, summary };
+    if (config.model === 'claude-sonnet-4-20250514') {
+      return await generateWithAnthropic(config, prompt, summary);
+    } else if (config.model === 'vertex-claude-sonnet-4-20250514') {
+      return await generateWithVertex(config, prompt, summary);
+    } else {
+      throw new Error(`サポートされていないモデル: ${config.model}`);
+    }
   } catch (error) {
     console.error(chalk.red('AIによるコミットメッセージ生成中にエラーが発生しました:'), error);
     throw error;
   }
+}
+
+/**
+ * Anthropic APIを使用してコミットメッセージを生成する
+ */
+async function generateWithAnthropic(
+  config: Config, 
+  prompt: string, 
+  summary: string
+): Promise<{ message: string, summary: string }> {
+  if (!config.apiKey) {
+    throw new Error('Anthropic APIキーが設定されていません。');
+  }
+
+  // Anthropic API リクエストデータ
+  const requestData = JSON.stringify({
+    model: 'claude-3-5-sonnet-20241022',
+    max_tokens: 100,
+    temperature: 0.7,
+    system: "あなたはGitコミットメッセージを生成するAIアシスタントです。簡潔で明確なコミットメッセージを日本語で生成してください。",
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ]
+  });
+
+  // HTTPリクエストのオプション
+  const options = {
+    hostname: 'api.anthropic.com',
+    path: '/v1/messages',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.apiKey,
+      'anthropic-version': '2023-06-01'
+    }
+  };
+
+  // HTTPリクエストを実行して結果を取得
+  const response = await makeHttpRequest(options, requestData);
+  
+  // レスポンスをJSONとしてパース
+  const responseData = JSON.parse(response);
+  
+  // レスポンスからコミットメッセージを抽出
+  const message = responseData.content[0].text.trim();
+  return { message, summary };
+}
+
+/**
+ * Google Cloud Vertex AIを使用してコミットメッセージを生成する
+ */
+async function generateWithVertex(
+  config: Config, 
+  prompt: string, 
+  summary: string
+): Promise<{ message: string, summary: string }> {
+  if (!config.projectName) {
+    throw new Error('Google Cloud プロジェクト名が設定されていません。');
+  }
+
+  // TODO: Vertex AI実装
+  // 現在はプレースホルダーとして簡単なメッセージを返す
+  console.log(chalk.yellow('Vertex AI実装は今後追加予定です。フォールバックメッセージを使用します。'));
+  
+  const message = `変更: ファイル更新`;
+  return { message, summary };
 }
 
 /**

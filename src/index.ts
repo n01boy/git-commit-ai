@@ -16,6 +16,7 @@ import {
   generateCommitMessageWithAI,
   generateDetailedChangeSummary
 } from './ai-service';
+import { runConfigSetup, showConfig } from './config';
 
 // コマンドラインオプションの設定
 program
@@ -25,9 +26,38 @@ program
   .option('-p, --push', 'コミット後に自動的にプッシュする')
   .option('-d, --debug', 'デバッグモード（AIへの入力を表示）')
   .option('-v, --verbose', '詳細モード（変更の詳細を表示）')
-  .parse(process.argv);
+  .allowUnknownOption(false)
+  .allowExcessArguments(false);
 
-const options = program.opts() as CommandOptions;
+// configコマンドを追加
+program
+  .command('config')
+  .description('AIモデルとAPIキーの設定を行う')
+  .action(async () => {
+    await runConfigSetup();
+    process.exit(0);
+  });
+
+// config showコマンドを追加
+program
+  .command('config:show')
+  .description('現在の設定を表示する')
+  .action(() => {
+    showConfig();
+    process.exit(0);
+  });
+
+let options: CommandOptions = {};
+
+// 引数なしの場合は直接メイン処理を実行
+if (process.argv.length === 2) {
+  // デフォルトオプションを設定
+  options = {};
+  main();
+} else {
+  program.parse(process.argv);
+  options = program.opts() as CommandOptions;
+}
 
 // 対話型インターフェースの設定
 const rl = readline.createInterface({
@@ -149,6 +179,3 @@ async function main() {
     rl.close();
   }
 }
-
-// プログラムを実行
-main();
